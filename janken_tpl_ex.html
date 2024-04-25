@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <script src="js/jquery-2.1.3.min.js"></script>
+  <link rel="stylesheet" href="css/sample.css">
+  <title>じゃんけん</title>
+</head>
+
+<body>
+  <a href="janken_tpl.html">コメントつき</a>
+  <a href="janken_tpl_witout_comment.html">コメントなし</a>
+  pvp
+
+  <header>
+    <h1>じゃんけん</h1>
+  </header>
+
+  <main id="main">
+    <div>
+      Enter Your Name:
+      <input type="text" id="txtName"><input id="btnRegisterName" type="submit" value="登録">
+      <input id="btnDelName" type="submit" value="全員削除" style="display: none;">
+      <input id="btnRegisterClose" type="submit" value="締切" style="display: none;">
+    </div>
+
+    <div id="template" style="display: none;">
+      <div>
+        <br>
+        Entry!___round___<br>
+        <div id="users___round___">
+
+        </div>
+      </div>
+
+      <div>
+        <br>
+        対戦組合せ!<br>
+        <div id="taisen___round___"></div>
+      </div>
+
+      <div id="yourTaisenAiteWrapper___round___">
+        <br>
+        あなたの対戦相手は!<br>
+        <span id="yourTaisenAite___round___"></span>
+      </div>
+
+      <div id="choices___round___" style="display: none;">
+        <br>
+        じゃんけんの手を選んでください！相手も選んだらじゃんけん開始です！
+        <ul>
+          <li class="choice___round___" id="gu_btn___round___" value="0">グー</li>
+          <li class="choice___round___" id="par_btn___round___" value="1">パー</li>
+          <li class="choice___round___" id="cho_btn___round___" value="2">チョキ</li>
+        </ul>
+      </div>
+
+      <div>相手の手は「<span id="aite_hands___round___">まだ</span>」</div>
+      <div>
+        <br>
+        結果は・・・
+        <br>
+        <span id="judgment___round___">まだ</span><br><br><br>
+      </div>
+    </div>
+  </main>
+
+  <footer></footer>
+
+  <script type="module">
+    // 名前はグローバルに持っておく
+    let gMyName = null;
+    // デバッグ用
+    // let gMyName = "なっしー";
+    let gSts = null;
+    let gTurn = 1;
+    let gTaisenKey = null;
+    let gMyChoice = null;
+    let gAiteChoice = null;
+    let gRound = 1;
+    let gJankenSelectionCancel = false;
+    let gTemplateAdded = {};
+
+    // 呼び出し時、テンプレートから1ラウンド目のガワを出力する。
+    // じゃんけん選択処理
+    const jkn = [
+      { disp: "グー", win: "チョキ" },
+      { disp: "パー", win: "グー" },
+      { disp: "チョキ", win: "パー" }
+    ];
+    function appendNewRound(roundNo) {
+      if (gTemplateAdded[roundNo]) { return; }
+      $('#main').append($('#template').html().replace(/___round___/g, roundNo));
+      $(`.choice${roundNo}`).on('click', (elem) => {
+        console.log(`.choice${roundNo} / Click`);
+        if (gJankenSelectionCancel) { return; }
+        gJankenSelectionCancel = true;
+        const selectedValInt = parseInt(elem.target.value);
+        $(`.choice${roundNo}`).hide();
+        $(`.choice${roundNo}[value="${selectedValInt}"]`).show();
+        const myChoice = jkn[parseInt(elem.target.value)];
+
+        const choice = {
+          taisen_key: gTaisenKey,
+          turn: gTurn,
+          player: gMyName,
+          disp: myChoice.disp,
+          winVS: myChoice.win,
+          result: null
+        };
+        const newChoiceRef = push(dbRefChoice);
+        set(newChoiceRef, choice);
+        gTemplateAdded[roundNo] = true;
+      });
+    }
+    appendNewRound(1);
+    appendNewRound(2);
+
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    // TODO: Add SDKs for Firebase products that you want to use
+    import { getDatabase, ref, push, set, onChildAdded, remove, onChildRemoved, update, onChildChanged, onValue }
+      from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+    // https://firebase.google.com/docs/web/setup#available-libraries
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBYHC7mgehcnO58aE8PQYJqyxUSToZGioo",
+      authDomain: "sample-bdcb1.firebaseapp.com",
+      projectId: "sample-bdcb1",
+      storageBucket: "sample-bdcb1.appspot.com",
+      messagingSenderId: "525120777563",
+      appId: "1:525120777563:web:e3d17ab3e2f3ab32a37e7e"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+
+    // my code
+    const db = getDatabase(app);
+    const dbRefUsers = ref(db, "janken_users");
+    const dbRefTaisen = ref(db, "janken_taisen");
+    const dbRefChoice = ref(db, "janken_choice");
+    const dbRefSts = ref(db, "janken_sts");
+
+    // 名前登録処理
+    $(`#btnRegisterName`).on('click', () => {
+      console.log(`clicked: btnRegisterName`);
+
+      // 入力値異常判定処理
+      const inputVal = $("#txtName").val().trim();
+      if (inputVal === '') {
+        alert('名前を入力してください');
+        return;
+      }
+
+      $('#btnRegisterName').prop('disabled', true);
+      $('#txtName').prop('disabled', true);
+
+      gMyName = inputVal;
+
+      if (gMyName == 'なっしー') {
+        $('#btnDelName').show();
+        $('#btnRegisterClose').show();
+      }
+
+      const msg = {
+        name: gMyName,
+        round: 1
+      }
+      const newPostRef = push(dbRefUsers);
+      set(newPostRef, msg);
+    });
+
+    // 名前削除処理
+    $("#btnDelName").on('click', () => {
+      console.log('clicked: btnDelName');
+
+      remove(dbRefUsers);
+      //$('#users').html('');
+
+      remove(dbRefTaisen);
+      // yourTaisenAite.html();
+      //$('#taisen').html();
+
+      remove(dbRefSts);
+
+      remove(dbRefChoice);
+
+      gSts = null;
+      gTurn = 1;
+      gRound = 1;
+      gTaisenKey = null;
+      gMyChoice = null;
+      gAiteChoice = null;
+      let gMyName = "";
+    });
+
+    // エントリー締切処理 1回目
+    $("#btnRegisterClose").on('click', async () => {
+      console.log('clicked: btnRegisterClose');
+      registerClose(1);
+    });
+
+    // エントリー締切処理 共通化
+    function registerClose(roundNo) {
+      if(gMyName != 'なっしー'){ return; }
+      const arrUsers = [];
+      let isOdd = false;
+
+      // ユーザー入力を締切、対戦表を作る。
+      // snapshotはアクセサでアクセスできなかったので、配列を作りそこから対戦表を作る。
+      onValue(dbRefUsers, (snapshot) => {
+        snapshot.forEach((childSnapshot) => {
+          if (childSnapshot.val().round == roundNo) {
+            arrUsers.push(childSnapshot);
+          }
+        });
+
+        // 【gpt】arrUsers配列をランダムに並び替えて
+        arrUsers.sort(() => Math.random() - 0.5);
+        // 【gpt】arrUsersのlengthが奇数の場合、配列の最後にnullを追加して偶数にする。
+        if (arrUsers.length % 2 !== 0) {
+          arrUsers.push(null);
+          isOdd = true;
+        }
+        // 2要素ずつ対戦相手としてDBに格納する。
+        for (let i = 0; i < arrUsers.length; i += 2) {
+          const newTaisenId = push(dbRefTaisen);
+          const newTaisen = {
+            name_a: arrUsers[i] ? arrUsers[i].val().name : null,
+            name_b: arrUsers[i + 1] ? arrUsers[i + 1].val().name : '不戦勝',
+            name_winner: arrUsers[i + 1] ? null : arrUsers[i].val().name,
+            round: roundNo
+          }
+          set(newTaisenId, newTaisen);
+        }
+      }, {
+        onlyOnce: true
+      });
+
+      // ステータス管理テーブルの初期化処理
+      remove(dbRefSts);
+      const sts = {
+        round: roundNo,
+        taisen_su: arrUsers.length / 2,
+        done: 0,
+        sts: "ready"
+      };
+      // 1行テーブルなので、キーは0に設定する。
+      const refSts = ref(db, "janken_sts/0")
+      set(refSts, sts);
+    }
+
+    // 名前の追加時の処理
+    onChildAdded(dbRefUsers, (data) => {
+      console.log('onChildAdded / Users');
+      const dt = data.val();
+      const key = data.key;
+      let h = `<span id="${key}_${dt.round}">${dt.name}<span><br>`;
+      $(`#users${dt.round}`).append(h);
+    });
+
+    // 対戦の追加時の処理
+    onChildAdded(dbRefTaisen, (data) => {
+      console.log('onChildAdded / Taisen');
+      const dt = data.val();
+      const key = data.key;
+      let h = `<span id="${key}_taisen_${dt.round}">${dt.name_a} vs ${dt.name_b}</span><br>`;
+      $(`#taisen${dt.round}`).append(h);
+
+      if (dt.name_a == gMyName || dt.name_b == gMyName) {
+        gTaisenKey = key;
+        const aite = dt.name_a == gMyName ? dt.name_b : dt.name_a;
+
+        if (aite == "不戦勝") {
+          $(`#yourTaisenAiteWrapper${dt.round}`).hide();
+          $(`#choices${dt.round}`).show();
+          $(`#choices${dt.round}`).html("<br>不戦勝！<br>全試合が終わるのを待ってください。");
+          const msg = {
+            name: gMyName,
+            round: gRound + 1
+          }
+          const newPostRef = push(dbRefUsers);
+          set(newPostRef, msg);
+
+          const update_item = ref(db, "janken_sts/0");
+          update(update_item, {
+            done: gSts.done + 1
+          });
+        } else {
+          $(`#yourTaisenAite${dt.round}`).html(aite);
+          $(`#choices${dt.round}`).show();
+        }
+      }
+    });
+
+    // 全体状況変化時の処理
+    onChildAdded(dbRefSts, (data) => {
+      gSts = data.val();
+    });
+    onChildChanged(dbRefSts, (data) => {
+      gSts = data.val();
+
+      if (gSts.done == gSts.taisen_su) {
+        // 全対戦終了 次ラウンドに映る
+        gSts = null;
+        gTurn = 1;
+        gTaisenKey = null;
+        gMyChoice = null;
+        gAiteChoice = null;
+        gRound += 1;
+        gJankenSelectionCancel = false;
+        appendNewRound(gRound + 1);
+        registerClose(gRound);
+      }
+    });
+
+    // 手選択時の処理
+    onChildAdded(dbRefChoice, (data) => {
+      console.log('onChildAdded / Choice');
+      const dt = data.val();
+      const key = data.key;
+
+      // 自分と同じ対戦、ターン、nameが自分でないものが相手の選択データ
+      if (
+        dt.taisen_key == gTaisenKey
+        && dt.turn == gTurn
+      ) {
+        if (dt.player == gMyName) {
+          gMyChoice = dt;
+        } else {
+          gAiteChoice = dt;
+        }
+
+        // 双方の手が出揃ったら、対戦を始める
+        if (gMyChoice && gAiteChoice) {
+          execTaisen();
+        }
+      }
+    });
+
+    function execTaisen() {
+      $(`#aite_hands${gRound}`).html(gAiteChoice.disp).fadeOut(1000).fadeIn(1000);
+
+      let ret = "";
+      let isKachi = false;
+      if (gAiteChoice.disp == gMyChoice.disp) {
+        ret = "あいこ";
+        gJankenSelectionCancel = false;
+        $(`.choice${gRound}`).show();
+        gTurn += 1;
+        gMyChoice = null;
+        gAiteChoice = null;
+      } else {
+        ret = gAiteChoice.winVS == gMyChoice.disp ? "負け" : "勝ち";
+
+        if (ret == "勝ち") {
+          const msg = {
+            name: gMyName,
+            round: gRound + 1
+          }
+          const newPostRef = push(dbRefUsers);
+          set(newPostRef, msg);
+
+          isKachi = true;
+        } else {
+
+        }
+      }
+      $(`#judgment${gRound}`).html(ret).fadeOut(1000).fadeIn(1000);
+
+      if (isKachi) {
+        const update_item = ref(db, "janken_sts/0");
+        update(update_item, {
+          done: gSts.done + 1
+        });
+      }
+    }
+  </script>
+</body>
+
+</html>

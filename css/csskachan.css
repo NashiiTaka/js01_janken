@@ -1,0 +1,70 @@
+h1 {
+    color: rgb(45, 239, 68);
+    font-size: 60px;
+    text-align: center;
+}
+
+.bothtefuda {
+    display: flex;
+    justify-content: space-between;
+}
+
+#playerstefuda {
+    overflow:hidden;
+    margin-left: 10%;
+}
+
+.tefuda {
+    width: 200px;
+    height: 200px;
+}
+
+.tefuda img {
+    width: 100%;
+    height: 100%;
+}
+
+.tefuda:hover {
+    transform:scale(1.1,1.1);
+    transition:0.6s all;
+}
+
+#cputefuda {
+    margin-right: 10%;
+}
+
+.masu {
+    height: 40px;
+}
+
+#pc_hands {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+    font-size: 50px;
+}
+
+#start {
+    color: #00f77b;
+    font-weight: bold;
+}
+
+#masu50 {
+    color: aqua;
+    font-weight: bold;
+}
+
+table {
+    width: 90%;
+    height: 720px;
+    border: 1px solid rgb(89, 3, 249);
+    margin: auto;
+    position: relative;
+    table-layout: fixed;
+}
+
+.smallbox{
+    text-align: center;
+    font-size: 20px;
+}
